@@ -38,15 +38,46 @@ from pycdf import *         # NetCDF module
 #   We subtract acc rain of the previous output time
 #   from the current output time
 
+# Routine for calculating differences between output times and storing this in a
+# given variable (ncvar)
+def get_precip(vnames,ncvar,f1,f2,fn1,fn2):
+    for v in vnamesnc:
+        print(v)
+        try:
+            try: 
+                vin1=f1.inq_varid(v)[:]   # Load variable data
+            except CDFError:
+                print ''.join(['Warning: Variable "',v,'" missing in "',fn_p,
+                               '", skipping'])
+                raise
+            try:
+                vin2=f2.inq_varid(v)[:]   # Load variable data
+            except CDFError:
+                print ''.join(['Warning: Variable "',v,'" missing in "',fn_c,
+                               '", skipping'])
+                raise
+        except CDFError:
+            pass
+            continue
+        #print(vin1)
+        #print(vin2)
+
+        # Add accumulation since last output time to precip_rate
+        # In this way, the contribution from each precip-type
+        # is added one-by-one
+        ncvar[:] = ncvar[:]+(vin2[:]-vin1[:])
+        #print precip_rate[:]
+
+###MAIN###
 # Setup 2 file lists
 fn_previous   = argv[1:-1]    # Previous files
 fn_current    = argv[2:]    # Current files
 
 # Variables we should use for calculating total hourly precipitation:
-vnames  = ['RAINC','RAINSH','RAINNC','SNOWNC','GRAUPELNC','HAILNC','asdaa']
-
-# String to be appended to the each variable description
-sdescr = ', SINCE LAST OUTPUT TIME'
+# If any of the variables are not present in the original files, they will be
+# skipped, so there shouldn't be a reason to remove entries.
+vnamesnc  = ['RAINNC','SNOWNC','GRAUPELNC','HAILNC']
+vnamesc   = ['RAINC','RAINSH']
 
 for fn_p,fn_c in zip(fn_previous,fn_current):   # for each pair of filenames
     f1    = CDF(fn_p,NC.NOWRITE)# open last file
@@ -88,45 +119,34 @@ for fn_p,fn_c in zip(fn_previous,fn_current):   # for each pair of filenames
     # Predefine hourly precipitation field in current file
     precip_rate = f2.def_var('PRECIP_H', NC.FLOAT,
                              ('Time','south_north','west_east') )
+    precip_rate_conv = f2.def_var('PRECIP_H_CONV', NC.FLOAT,
+                             ('Time','south_north','west_east') )
     #print precip_rate[:]
     # Initialize field as 0
     precip_rate[:]=0
+    precip_rate_conv[:]=0
     #print precip_rate[:]
     # Set attributes
     precip_rate.FieldType   = 104
     precip_rate.MemoryOrder = 'XY'
-    precip_rate.description = 'TOTAL PRECIPIATION SINCE LAST OUTPUT TIME'
+    precip_rate.description = 'TOTAL LARGE SCALE PRECIPIATION SINCE LAST OUTPUT TIME'
     precip_rate.units       = 'mm/[OUTPUT TIME INTERVAL]'
     precip_rate.stagger     = ''
     precip_rate.coordinates = 'XLONG XLAT'
 
-    for v in vnames:
-        print(v)
-        try:
-            try: 
-                vin1=f1.inq_varid(v)[:]   # Load variable data
-            except CDFError:
-                print ''.join(['Warning: Variable "',v,'" missing in "',fn_p,
-                               '", skipping'])
-                raise
-            try:
-                vin2=f2.inq_varid(v)[:]   # Load variable data
-            except CDFError:
-                print ''.join(['Warning: Variable "',v,'" missing in "',fn_c,
-                               '", skipping'])
-                raise
-        except CDFError:
-            pass
-            continue
-        #print(vin1)
-        #print(vin2)
+    precip_rate_conv.FieldType   = 104
+    precip_rate_conv.MemoryOrder = 'XY'
+    precip_rate_conv.description = 'TOTAL CONVECTIVE PRECIPIATION SINCE LAST OUTPUT TIME'
+    precip_rate_conv.units       = 'mm/[OUTPUT TIME INTERVAL]'
+    precip_rate_conv.stagger     = ''
+    precip_rate_conv.coordinates = 'XLONG XLAT'
 
-        # Add accumulation since last output time to precip_rate
-        # In this way, the contribution from each precip-type
-        # is added one-by-one
-        precip_rate[:] = precip_rate[:]+(vin2[:]-vin1[:])
-        #print precip_rate[:]
+    # get hourly precipitation values for convective and nonconvective fields
+    get_precip(vnamesc,precip_rate,f1,f2,fn_p,fn_c)
+    get_precip(vnamesnc,precip_rate_conv,f1,f2,fn_p,fn_c)
 
     # Close the files
     # (probably not required, but good to clarify that we're done)
     del f1,f2
+
+
