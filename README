@@ -1,0 +1,17 @@
+This script will cycle through a list of WRF output files given as arguments
+and calculate the hourly precipitation.
+
+Example:
+  python ppwrf_hourly_precip.py file1 file2 [...fileN]
+
+  Will calculate the average precipitation rate over the last hour.
+  the files can only contain one output time. The time between files
+  must be one hour.
+
+The created variables are:
+  PRECIP_H          -     Large scale precipitation
+
+
+Current problems:
+* Precipitation rate will be for the past hour not current time
+* Large scale and convective precipitation should be separated
