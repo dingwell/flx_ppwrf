@@ -1,3 +1,5 @@
+NOTE: This routine was only used in the early days of the wet depositions scheme and is now redundant!
+
 This script will cycle through a list of WRF output files given as arguments
 and calculate the hourly precipitation.
 
